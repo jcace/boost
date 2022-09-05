@@ -44,9 +44,10 @@ func TestTransferLimiterBasic(t *testing.T) {
 
 	// Set up the transfer limiter
 	tl, err := newTransferLimiter(TransferLimiterConfig{
-		MaxConcurrent:    1,
-		StallCheckPeriod: time.Millisecond,
-		StallTimeout:     30 * time.Second,
+		MaxConcurrent:        1,
+		MaxConcurrentPerPeer: 1,
+		StallCheckPeriod:     time.Millisecond,
+		StallTimeout:         30 * time.Second,
 	})
 	require.NoError(t, err)
 
@@ -68,9 +69,10 @@ func TestTransferLimiterQueueSize(t *testing.T) {
 	defer cancel()
 
 	tl, err := newTransferLimiter(TransferLimiterConfig{
-		MaxConcurrent:    1,
-		StallCheckPeriod: time.Millisecond,
-		StallTimeout:     30 * time.Second,
+		MaxConcurrent:        1,
+		MaxConcurrentPerPeer: 1,
+		StallCheckPeriod:     time.Millisecond,
+		StallTimeout:         30 * time.Second,
 	})
 	require.NoError(t, err)
 
