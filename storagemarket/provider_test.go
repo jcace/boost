@@ -1360,9 +1360,10 @@ func NewHarness(t *testing.T, opts ...harnessOpt) *ProviderHarness {
 		MaxTransferDuration: time.Hour,
 		RemoteCommp:         !pc.localCommp,
 		TransferLimiter: TransferLimiterConfig{
-			MaxConcurrent:    10,
-			StallCheckPeriod: time.Millisecond,
-			StallTimeout:     time.Hour,
+			MaxConcurrent:        10,
+			MaxConcurrentPerPeer: 10,
+			StallCheckPeriod:     time.Millisecond,
+			StallTimeout:         time.Hour,
 		},
 	}
 	prov, err := NewProvider(prvCfg, sqldb, dealsDB, fm, sm, fn, minerStub, minerAddr, minerStub, minerStub, sps, minerStub, df, sqldb,
