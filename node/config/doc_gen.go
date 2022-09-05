@@ -243,6 +243,13 @@ Note that this is a soft maximum; if some downloads stall,
 more downloads are allowed to start.`,
 		},
 		{
+			Name: "HttpTransferMaxConcurrentDownloadsPerPeer",
+			Type: "uint64",
+
+			Comment: `The maximum number of concurrent storage deal HTTP downloads.
+This limit is applied per-peer`,
+		},
+		{
 			Name: "HttpTransferStallCheckPeriod",
 			Type: "Duration",
 

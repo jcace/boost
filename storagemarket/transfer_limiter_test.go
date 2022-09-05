@@ -401,10 +401,11 @@ func TestTransferLimiterPerPeerLimit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Generate a deal and add to the transfer queue
-	h := "myhost.com"
-	deal1 := generateDealWithHost(h)
+	h1 := "myhost.com"
+	h2 := "otherhost.com"
+	deal1 := generateDealWithHost(h1)
 
-	started := make(chan struct{}, 2)
+	started := make(chan struct{}, 3)
 	go func() {
 		err := tl.waitInQueue(ctx, deal1)
 		require.NoError(t, err)
@@ -419,7 +420,7 @@ func TestTransferLimiterPerPeerLimit(t *testing.T) {
 	<-started
 
 	// Generate a second deal to the same peer
-	deal2 := generateDealWithHost(h)
+	deal2 := generateDealWithHost(h1)
 	deal2.ClientPeerID = deal1.ClientPeerID
 
 	go func() {
@@ -433,11 +434,26 @@ func TestTransferLimiterPerPeerLimit(t *testing.T) {
 
 	tl.check(time.Now().Add(cfg.StallTimeout))
 
-	// Expect the third transfer not to start yet, because there's a stalled
-	// transfer to the same peer in the queue and we've reached the soft limit
+	// Expect the second transfer not to start yet, because the concurrent limit has been reached for that peer
 	select {
 	case <-started:
 		require.Fail(t, "expected second transfer not to start yet")
 	default:
 	}
+
+	// Generate a third deal, to a different peer
+	deal3 := generateDealWithHost(h2)
+
+	go func() {
+		err := tl.waitInQueue(ctx, deal3)
+		require.NoError(t, err)
+		started <- struct{}{}
+	}()
+
+	// Wait till go-routine calls waitInQueue
+	require.Eventually(t, func() bool { return tl.transfersCount() == 3 }, time.Second, time.Millisecond)
+
+	// Expect the third transfer to start now since it's with a different peer
+	tl.check(time.Now())
+	<-started
 }
