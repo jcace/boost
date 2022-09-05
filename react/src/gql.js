@@ -464,6 +464,7 @@ const TransferStatsQuery = gql`
     query AppTransferStatsQuery {
         transferStats {
             HttpMaxConcurrentDownloads
+            HttpMaxConcurrentDownloadsPerPeer
             Stats {
                 Host
                 Total

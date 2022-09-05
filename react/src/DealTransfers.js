@@ -127,6 +127,10 @@ function TransferStats(props) {
                     <th>HTTP concurrent download limit:</th>
                     <td>{stats.HttpMaxConcurrentDownloads}</td>
                 </tr>
+                <tr>
+                    <th>HTTP concurrent download limit (Per-Peer):</th>
+                    <td>{stats.HttpMaxConcurrentDownloadsPerPeer}</td>
+                </tr>
                 </tbody>
             </table>
         </div>

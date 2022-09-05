@@ -22,8 +22,9 @@ func (r *resolver) Transfers(_ context.Context) []*transferPoint {
 }
 
 type transferStats struct {
-	HttpMaxConcurrentDownloads int32
-	Stats                      []*hostTransferStats
+	HttpMaxConcurrentDownloads        int32
+	HttpMaxConcurrentDownloadsPerPeer int32
+	Stats                             []*hostTransferStats
 }
 
 type hostTransferStats struct {
@@ -49,8 +50,9 @@ func (r *resolver) TransferStats(_ context.Context) *transferStats {
 		})
 	}
 	return &transferStats{
-		HttpMaxConcurrentDownloads: int32(r.cfg.Dealmaking.HttpTransferMaxConcurrentDownloads),
-		Stats:                      gqlStats,
+		HttpMaxConcurrentDownloads:        int32(r.cfg.Dealmaking.HttpTransferMaxConcurrentDownloads),
+		HttpMaxConcurrentDownloadsPerPeer: int32(r.cfg.Dealmaking.HttpTransferMaxConcurrentDownloadsPerPeer),
+		Stats:                             gqlStats,
 	}
 }
 

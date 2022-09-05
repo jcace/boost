@@ -299,6 +299,7 @@ type HostStats {
 
 type TransferStats {
   HttpMaxConcurrentDownloads: Int!
+  HttpMaxConcurrentDownloadsPerPeer: Int!
   Stats: [HostStats]!
 }
 
