@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/exp/rand"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/rand"
 
 	smtypes "github.com/filecoin-project/boost/storagemarket/types"
 	"github.com/filecoin-project/boost/testutil"
@@ -120,9 +121,10 @@ func TestTransferLimiterStalledTransfer(t *testing.T) {
 	defer cancel()
 
 	cfg := TransferLimiterConfig{
-		MaxConcurrent:    1,
-		StallCheckPeriod: time.Millisecond,
-		StallTimeout:     time.Second,
+		MaxConcurrent:        1,
+		MaxConcurrentPerPeer: 1,
+		StallCheckPeriod:     time.Millisecond,
+		StallTimeout:         time.Second,
 	}
 	tl, err := newTransferLimiter(cfg)
 	require.NoError(t, err)
@@ -186,9 +188,10 @@ func TestTransferLimiterPriorityOldestFirst(t *testing.T) {
 	defer cancel()
 
 	cfg := TransferLimiterConfig{
-		MaxConcurrent:    1,
-		StallCheckPeriod: time.Millisecond,
-		StallTimeout:     30 * time.Second,
+		MaxConcurrent:        1,
+		MaxConcurrentPerPeer: 1,
+		StallCheckPeriod:     time.Millisecond,
+		StallTimeout:         30 * time.Second,
 	}
 	tl, err := newTransferLimiter(cfg)
 	require.NoError(t, err)
@@ -248,9 +251,10 @@ func TestTransferLimiterPriorityNoExistingTransferToPeerFirst(t *testing.T) {
 	defer cancel()
 
 	cfg := TransferLimiterConfig{
-		MaxConcurrent:    2,
-		StallCheckPeriod: time.Millisecond,
-		StallTimeout:     30 * time.Second,
+		MaxConcurrent:        2,
+		MaxConcurrentPerPeer: 2,
+		StallCheckPeriod:     time.Millisecond,
+		StallTimeout:         30 * time.Second,
 	}
 	tl, err := newTransferLimiter(cfg)
 	require.NoError(t, err)
@@ -311,9 +315,10 @@ func TestTransferLimiterStalledTransferHardLimited(t *testing.T) {
 	defer cancel()
 
 	cfg := TransferLimiterConfig{
-		MaxConcurrent:    2,
-		StallCheckPeriod: time.Millisecond,
-		StallTimeout:     time.Second,
+		MaxConcurrent:        2,
+		MaxConcurrentPerPeer: 2,
+		StallCheckPeriod:     time.Millisecond,
+		StallTimeout:         time.Second,
 	}
 	tl, err := newTransferLimiter(cfg)
 	require.NoError(t, err)
@@ -377,6 +382,62 @@ func TestTransferLimiterStalledTransferHardLimited(t *testing.T) {
 	select {
 	case <-started:
 		require.Fail(t, "expected third transfer not to start yet")
+	default:
+	}
+}
+
+// Verifies that a new transfer will not be started if the per-peer limit has been reached
+func TestTransferLimiterPerPeerLimit(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cfg := TransferLimiterConfig{
+		MaxConcurrent:        2,
+		MaxConcurrentPerPeer: 1,
+		StallCheckPeriod:     time.Millisecond,
+		StallTimeout:         time.Second,
+	}
+	tl, err := newTransferLimiter(cfg)
+	require.NoError(t, err)
+
+	// Generate a deal and add to the transfer queue
+	h := "myhost.com"
+	deal1 := generateDealWithHost(h)
+
+	started := make(chan struct{}, 2)
+	go func() {
+		err := tl.waitInQueue(ctx, deal1)
+		require.NoError(t, err)
+		started <- struct{}{}
+	}()
+
+	// Wait till go-routine calls waitInQueue
+	require.Eventually(t, func() bool { return tl.transfersCount() == 1 }, time.Second, time.Millisecond)
+
+	// Expect the first transfer to start
+	tl.check(time.Now())
+	<-started
+
+	// Generate a second deal to the same peer
+	deal2 := generateDealWithHost(h)
+	deal2.ClientPeerID = deal1.ClientPeerID
+
+	go func() {
+		err := tl.waitInQueue(ctx, deal2)
+		require.NoError(t, err)
+		started <- struct{}{}
+	}()
+
+	// Wait till go-routine calls waitInQueue
+	require.Eventually(t, func() bool { return tl.transfersCount() == 2 }, time.Second, time.Millisecond)
+
+	tl.check(time.Now().Add(cfg.StallTimeout))
+
+	// Expect the third transfer not to start yet, because there's a stalled
+	// transfer to the same peer in the queue and we've reached the soft limit
+	select {
+	case <-started:
+		require.Fail(t, "expected second transfer not to start yet")
 	default:
 	}
 }
