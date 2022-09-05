@@ -31,6 +31,8 @@ func (t *transfer) isStarted() bool {
 type TransferLimiterConfig struct {
 	// The maximum number of concurrent transfers (soft limit - see comment below)
 	MaxConcurrent uint64
+	// Maximum number of concurrent trasnfers per peer
+	MaxConcurrentPerPeer uint64
 	// The period between checking if a connection has stalled
 	StallCheckPeriod time.Duration
 	// The time that can elapse before a download is considered stalled
@@ -79,6 +81,9 @@ func newTransferLimiter(cfg TransferLimiterConfig) (*transferLimiter, error) {
 	if cfg.MaxConcurrent == 0 {
 		return nil, fmt.Errorf("maximum active concurrent transfers must be > 0")
 	}
+	if cfg.MaxConcurrentPerPeer == 0 {
+		return nil, fmt.Errorf("maximum active concurrent transfers per-peer must be > 0")
+	}
 	if cfg.StallCheckPeriod == 0 {
 		return nil, fmt.Errorf("transfer stall check period must be > 0")
 	}
@@ -125,7 +130,7 @@ func (tl *transferLimiter) check(now time.Time) {
 
 	// Count how many transfers are active (not stalled)
 	var activeCount uint64
-	transferringPeers := make(map[string]struct{}, len(xfers))
+	transferringPeers := make(map[string]uint64, len(xfers))
 	stalledPeers := make(map[string]struct{}, len(xfers))
 	unstartedXfers := make([]*transfer, 0, len(xfers))
 	for _, xfer := range xfers {
@@ -138,7 +143,7 @@ func (tl *transferLimiter) check(now time.Time) {
 		}
 
 		// Build the set of peers that have an ongoing transfer (needed later)
-		transferringPeers[xfer.host] = struct{}{}
+		transferringPeers[xfer.host] += 1
 
 		// Check each transfer to see if it has stalled
 		if now.Sub(xfer.updatedAt) < tl.cfg.StallTimeout {
@@ -180,6 +185,10 @@ func (tl *transferLimiter) check(now time.Time) {
 				continue
 			}
 
+			if transferringPeers[xfer.host] >= tl.cfg.MaxConcurrentPerPeer {
+				continue
+			}
+
 			// Default to choosing the oldest unstarted transfer
 			if next == nil {
 				next = xfer
@@ -206,7 +215,7 @@ func (tl *transferLimiter) check(now time.Time) {
 		}
 
 		// Update the list of peers with active transfers
-		transferringPeers[next.host] = struct{}{}
+		transferringPeers[next.host] += 1
 
 		// Signal that the transfer has started
 		next.updatedAt = time.Now()

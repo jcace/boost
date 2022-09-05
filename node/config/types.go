@@ -175,6 +175,10 @@ type DealmakingConfig struct {
 	// Note that this is a soft maximum; if some downloads stall,
 	// more downloads are allowed to start.
 	HttpTransferMaxConcurrentDownloads uint64
+
+	// The maximum number of concurrent storage deal HTTP downloads, per peer
+	HttpTransferMaxConcurrentDownloadsPerPeer uint64
+
 	// The period between checking if downloads have stalled.
 	HttpTransferStallCheckPeriod Duration
 	// The time that can elapse before a download is considered stalled (and
